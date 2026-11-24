@@ -3,10 +3,13 @@ import dataclasses
 from core.Config import cityBounds, members, stampLine
 from core.Instance import Instance
 from world import World
+from world.CityGrid import cityGrid
+from world.CityMap import rawOsmPath
 from world.Heuristics import StopDistances
 
 fieldNames = {f.name for f in dataclasses.fields(Instance)}
 readOnly = {"instanceId", "grid"}
+demoNote = "real-city demo: numbers differ from the CMS-ID instance"
 
 
 class Session:
@@ -15,7 +18,25 @@ class Session:
     def __init__(self):
         self.overrides = {}
         self.distanceKey = None
+        self.mode = "instance"
         self.install(Instance.load())
+
+    def buildInstance(self, overrides: dict) -> Instance:
+        base = Instance.load(**overrides)
+        if self.mode == "instance":
+            return base
+        grid, start, stops = cityGrid(rawOsmPath, base.start, base.stops)
+        return dataclasses.replace(base, grid=grid, start=start, stops=stops)
+
+    def setMode(self, mode: str) -> None:
+        if mode not in ("instance", "city"):
+            raise ValueError(f"mode must be 'instance' or 'city', got {mode!r}")
+        previous, self.mode = self.mode, mode
+        try:
+            self.install(self.buildInstance(self.overrides))
+        except ValueError:
+            self.mode = previous
+            raise
 
     def update(self, overrides: dict) -> None:
         unknown = sorted(set(overrides) - fieldNames)
@@ -30,28 +51,31 @@ class Session:
         if "stops" in normalized:
             normalized["stops"] = tuple(tuple(cell) for cell in normalized["stops"])
         candidate = {**self.overrides, **normalized}
-        instance = Instance.load(**candidate)
+        instance = self.buildInstance(candidate)
         checkCells(instance)
         self.overrides = candidate
         self.install(instance)
 
     def reset(self) -> None:
         self.overrides = {}
-        self.install(Instance.load())
+        self.install(self.buildInstance({}))
 
     def install(self, instance: Instance) -> None:
         self.instance = instance
         self.world = World(instance)
-        # distances depend only on terrain, start and stops; slip edits reuse them
-        key = (tuple(instance.terrainCost.items()), instance.start, instance.stops)
+        # distances depend only on terrain, grid, start and stops; slip edits reuse them
+        key = (tuple(instance.terrainCost.items()), instance.grid.tobytes(), instance.start, instance.stops)
         if key != self.distanceKey:
             self.distances = StopDistances(self.world)
             self.distanceKey = key
 
     def payload(self) -> dict:
         inst = self.instance
+        extra = {"demoNote": demoNote} if self.mode == "city" else {}
         return {
             "stamp": stampLine,
+            "mode": self.mode,
+            **extra,
             "members": [{"name": name, "cmsId": cms} for name, cms in members],
             "instanceId": inst.instanceId,
             "rows": self.world.rows,
