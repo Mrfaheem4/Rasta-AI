@@ -1,4 +1,4 @@
-﻿import numpy as np
+import numpy as np
 
 from core.Instance import Cell, Instance
 from world.CostMap import buildCostMap
