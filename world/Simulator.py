@@ -6,6 +6,9 @@ from world.DeliveryProblem import DeliveryProblem
 from world.World import World, moves
 
 directions = tuple(action for action, _, _ in moves)
+# The rival moves every 2nd turn: a heavier vehicle, so a full-speed rival never loses ground to a
+# slipping agent (slip rate 0.3-0.4), which made every game unwinnable.
+rivalEveryDefault = 2
 
 
 @dataclass
@@ -31,11 +34,22 @@ def pickMove(options, action):
 class Simulator:
     """Stochastic world: agent slips on 4-way moves, rival steals carried parcels when adjacent."""
 
-    def __init__(self, world: World, rng, rivalStart: Cell, theftCooldown: int = 3):
+    def __init__(
+        self,
+        world: World,
+        rng,
+        rivalStart: Cell,
+        theftCooldown: int = 10,
+        rivalEvery: int = rivalEveryDefault,
+    ):
         self.world = world
         self.rng = rng
         self.cooldownLength = theftCooldown
+        self.rivalEvery = rivalEvery  # the rival moves on every rivalEvery-th turn (half speed at 2)
+        self.rivalTurns = 0
+        self.rivalMoved = False
         self.state = SimState(world.instance.start, rivalStart, 0, world.fullMask, 0, 0.0, 0, 0, 0)
+        self.rivalStayed = False  # no camping: a rival that stayed last turn must move this turn if it can
 
     def legalMoves(self, cell, other):
         options = [m for m in self.world.neighbors(cell) if m[1] != other]
@@ -60,12 +74,25 @@ class Simulator:
         return slipped
 
     def rivalStep(self, action) -> bool:
-        """Move the rival (no slip), then apply theft. Returns True if a parcel was stolen."""
+        """Move the rival (no slip) on its turns, then apply theft. Returns True if a parcel was stolen."""
         s = self.state
         if s.theftCooldown > 0:
             s.theftCooldown -= 1
-        walks = [m for m in self.legalMoves(s.rival, s.agent) if m[0] != "teleport"]  # rival can't teleport
-        _, s.rival, _ = pickMove(walks, action)
+        self.rivalTurns += 1
+        self.rivalMoved = self.rivalTurns % self.rivalEvery == 0
+        if self.rivalMoved:
+            walks = [
+                m for m in self.legalMoves(s.rival, s.agent) if m[0] != "teleport"
+            ]  # rival can't teleport
+            if self.rivalStayed and len(walks) > 1:
+                # no camping: a blocking vehicle cannot park indefinitely, or camping next to a stop
+                # turns theft into an unbreakable trap; a forced stay becomes the first legal walk
+                walks = [m for m in walks if m[0] != "stay"]
+                if action == "stay":
+                    action = walks[0][0]
+            _, s.rival, _ = pickMove(walks, action)
+            self.rivalStayed = action == "stay"
+        # on its off turns the heavy vehicle waits; that wait is not a stay for the no-camping rule
         adjacent = abs(s.agent[0] - s.rival[0]) + abs(s.agent[1] - s.rival[1]) <= 1
         if adjacent and s.theftCooldown == 0 and s.carriedMask:
             s.carriedMask ^= s.carriedMask & -s.carriedMask

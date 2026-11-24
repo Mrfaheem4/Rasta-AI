@@ -24,10 +24,13 @@ def windowOf(world: World, center: Cell, radius: int) -> frozenset:
 class RivalGame:
     """Reduced delivery game: MAX = delivery agent, MIN = blocker rival, both confined to a window.
 
-    State = (agent, rival, deliveredMask, carriedMask). Deterministic on purpose (no slip, no rival
-    cooldown, which is a simplification of the full model). Entering the depot reloads undelivered
-    parcels; entering a stop delivers it if carried; the rival steals the lowest carried parcel
-    when it is within Manhattan distance 1 of the agent after any ply.
+    State = (agent, rival, deliveredMask, carriedMask). Deterministic on purpose: no slip, and no
+    theft cooldown (the simulator uses 10), and no no-camping rule (the simulator forbids a rival
+    from staying twice in a row; that rule is simulator-only). Entering the depot reloads
+    undelivered parcels; entering a stop delivers it if carried; the rival steals the lowest
+    carried parcel when it is within Manhattan distance 1 of the agent after any ply.
+    Deliberately pessimistic: the rival moves on every ply (full speed), while the simulator's
+    rival is half speed. Assuming the stronger rival keeps the agent's contest decisions safe.
     """
 
     def __init__(self, world: World, root, radius: int = defaultRadius, evaluation: Evaluation | None = None):

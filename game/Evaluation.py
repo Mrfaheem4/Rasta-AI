@@ -33,6 +33,7 @@ class Evaluation:
         self.weights = weights
         self.world = world
         self.progressHeuristic = tunnelMst(distances)
+        self.cache = {}  # the same states recur across alphaBeta branches
 
     def blockage(self, agent, rival, delivered) -> int:
         pending = [i for i in range(len(self.distances.stops)) if not (delivered >> i) & 1]
@@ -58,4 +59,8 @@ class Evaluation:
         }
 
     def __call__(self, state) -> float:
-        return sum(self.weights[name] * value for name, value in self.features(state).items())
+        if state not in self.cache:
+            self.cache[state] = sum(
+                self.weights[name] * value for name, value in self.features(state).items()
+            )
+        return self.cache[state]
