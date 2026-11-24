@@ -31,19 +31,22 @@ class ReverseGrid:
 
 
 class StopDistances:
-    """Exact tunnel-aware costs. toStop[i][cell] = cell to stop i; matrix[i, j] = stop i to stop j."""
+    """Exact tunnel-aware costs over stops plus the depot (last index).
+
+    toNode[i][cell] = cell to node i; matrix[i, j] = node i to node j; symmetric = min(matrix, matrix.T).
+    """
 
     def __init__(self, world: World):
         self.stops = world.instance.stops
-        self.toStop = [costField(ReverseGrid(world, stop)) for stop in self.stops]
-        n = len(self.stops)
-        self.matrix = np.array(
-            [[self.toStop[j].get(self.stops[i], np.inf) for j in range(n)] for i in range(n)]
-        )
+        self.depotIndex = len(self.stops)
+        nodes = [*self.stops, world.instance.start]
+        self.toNode = [costField(ReverseGrid(world, node)) for node in nodes]
+        n = len(nodes)
+        self.matrix = np.array([[self.toNode[j].get(nodes[i], np.inf) for j in range(n)] for i in range(n)])
         self.symmetric = np.minimum(self.matrix, self.matrix.T)
 
     def cellCost(self, cell, i) -> float:
-        return self.toStop[i].get(cell, np.inf)
+        return self.toNode[i].get(cell, np.inf)
 
 
 def activeIndices(allStops, stops) -> list[int]:
@@ -51,7 +54,7 @@ def activeIndices(allStops, stops) -> list[int]:
 
 
 def primWeight(weights, nodes) -> float:
-    """Prim's MST weight over the given stop indices."""
+    """Prim's MST weight over the given node indices."""
     if len(nodes) < 2:
         return 0.0
     best = {v: weights[nodes[0], v] for v in nodes[1:]}
@@ -64,14 +67,22 @@ def primWeight(weights, nodes) -> float:
     return float(total)
 
 
+def pendingNodes(state, active, depotIndex):
+    """Undelivered active stops, plus the depot if any of them is not carried (must reload first)."""
+    _, delivered, carried = state
+    pending = tuple(i for i in active if not (delivered >> i) & 1)
+    if any(not (carried >> i) & 1 for i in pending):
+        return pending + (depotIndex,)
+    return pending
+
+
 def manhattanHeuristic(world: World, pick, stops=None):
     active = activeIndices(world.instance.stops, stops)
-    targets = [world.instance.stops[i] for i in active]
     minCost = min(world.instance.terrainCost.values())
 
     def h(state) -> float:
-        (r, c), mask = state
-        pending = [t for i, t in zip(active, targets, strict=True) if not (mask >> i) & 1]
+        (r, c), delivered, _ = state
+        pending = [world.instance.stops[i] for i in active if not (delivered >> i) & 1]
         if not pending:
             return 0.0
         return minCost * pick(abs(r - tr) + abs(c - tc) for tr, tc in pending)
@@ -88,18 +99,17 @@ def manhattanFarthest(world: World, stops=None):
 
 
 def tunnelMst(distances: StopDistances, stops=None):
-    """Exact cost to the nearest undelivered stop + MST weight over undelivered stops (cached per mask)."""
+    """Exact cost to the nearest pending node + MST weight over pending nodes (cached per node set)."""
     active = activeIndices(distances.stops, stops)
     cache = {}
 
     def h(state) -> float:
-        cell, mask = state
-        pending = tuple(i for i in active if not (mask >> i) & 1)
-        if not pending:
+        nodes = pendingNodes(state, active, distances.depotIndex)
+        if not nodes:
             return 0.0
-        if pending not in cache:
-            cache[pending] = primWeight(distances.symmetric, pending)
-        return min(distances.cellCost(cell, i) for i in pending) + cache[pending]
+        if nodes not in cache:
+            cache[nodes] = primWeight(distances.symmetric, nodes)
+        return min(distances.cellCost(state[0], i) for i in nodes) + cache[nodes]
 
     return h
 
@@ -109,10 +119,9 @@ def exactNearest(distances: StopDistances, stops=None):
     active = activeIndices(distances.stops, stops)
 
     def h(state) -> float:
-        cell, mask = state
-        pending = [i for i in active if not (mask >> i) & 1]
-        if not pending:
+        nodes = pendingNodes(state, active, distances.depotIndex)
+        if not nodes:
             return 0.0
-        return min(distances.cellCost(cell, i) for i in pending)
+        return min(distances.cellCost(state[0], i) for i in nodes)
 
     return h
