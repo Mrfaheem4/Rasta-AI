@@ -12,7 +12,7 @@ def bestFirst(
 ) -> SearchResult:
     """Graph best-first search keyed by priority(g, h); goal test on expansion.
 
-    reopen=False never revisits a generated state (greedy: priority ignores g, so a cheaper g changes nothing).
+    reopen=False never revisits a generated state (greedy: its priority ignores g).
     """
     start = problem.initialState()
     parents = {start: None}
