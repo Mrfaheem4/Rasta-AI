@@ -13,6 +13,8 @@ class World:
         self.costMap = buildCostMap(instance.grid, instance.terrainCost)
         self.tunnels = makeTunnels(instance)
         self.rows, self.cols = self.costMap.shape
+        self.stopBit = {cell: 1 << i for i, cell in enumerate(instance.stops)}
+        self.fullMask = (1 << len(instance.stops)) - 1
 
     def neighbors(self, cell: Cell) -> list[tuple[str, Cell, float]]:
         r, c = cell
@@ -24,3 +26,13 @@ class World:
         if cell in self.tunnels:
             out.append(("teleport", self.tunnels[cell], tunnelCost))
         return out
+
+    def enter(self, cell: Cell, delivered: int, carried: int) -> tuple[int, int]:
+        """Entering a stop delivers it if carried; entering the depot reloads every undelivered parcel."""
+        bit = self.stopBit.get(cell, 0)
+        if bit and carried & bit:
+            delivered |= bit
+            carried &= ~bit
+        if cell == self.instance.start:
+            carried = self.fullMask & ~delivered
+        return delivered, carried
