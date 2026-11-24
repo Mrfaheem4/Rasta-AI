@@ -19,6 +19,22 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
+## Reproduce
+```
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+python RunAll.py            # every experiment and figure (add --quick for a shorter run)
+```
+- Tables are printed with the group stamp and written as CSV to `outputs/`.
+- Figures are written as PNG to `outputs/figures/`.
+- The city map for the frontend is built by `world.CityMap.buildCityMap()` from `data/osm/raw.json` (not committed).
+
+Run the API (FastAPI) for the frontend:
+```
+.venv\Scripts\python.exe -m uvicorn api.Server:app --port 8000
+```
+
 ## Layout
 | Folder | Contents |
 |---|---|
