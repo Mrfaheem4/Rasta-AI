@@ -35,6 +35,10 @@ class ParamsRequest(BaseModel):
     overrides: dict[str, Any]
 
 
+class ModeRequest(BaseModel):
+    mode: str
+
+
 class PlanRequest(BaseModel):
     algorithm: str
     heuristic: str = "tunnelMst"
@@ -83,6 +87,15 @@ def setParams(req: ParamsRequest):
 @app.post("/params/reset")
 def resetParams():
     session.reset()
+    return session.payload()
+
+
+@app.post("/mode")
+def setMode(req: ModeRequest):
+    try:
+        session.setMode(req.mode)
+    except (ValueError, TypeError) as err:
+        raise badRequest(str(err)) from err
     return session.payload()
 
 
