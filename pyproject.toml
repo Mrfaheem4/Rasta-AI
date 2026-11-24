@@ -1,0 +1,13 @@
+[project]
+name = "rasta-ai"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 110
+extend-exclude = ["oel_instance.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B"]
+# N999: PascalCase file names; N802/N803/N806/N815/N816: camelCase names (project convention)
+ignore = ["N999", "N802", "N803", "N806", "N815", "N816"]
