@@ -1,38 +1,13 @@
-import csv
-from pathlib import Path
-
 import numpy as np
 
 from algo import aStar, bfs, costField, greedy, ids, ucs
 from core.Config import stampLine
 from core.Instance import Instance
+from experiments.Stamp import printTable, writeCsv
 from world import DeliveryProblem, World
 from world.Heuristics import StopDistances, exactNearest, manhattanFarthest, manhattanNearest, tunnelMst
 
-outDir = Path(__file__).resolve().parents[1] / "outputs"
 eps = 1e-9
-
-
-def fmt(value):
-    return f"{value:.4g}" if isinstance(value, float) else str(value)
-
-
-def printTable(title, header, rows):
-    print(f"\n== {title} ==")
-    print(stampLine)
-    lines = [header] + [[fmt(v) for v in row] for row in rows]
-    widths = [max(len(line[i]) for line in lines) for i in range(len(header))]
-    for line in lines:
-        print("  ".join(v.ljust(w) for v, w in zip(line, widths, strict=True)))
-
-
-def writeCsv(name, header, rows):
-    outDir.mkdir(exist_ok=True)
-    with open(outDir / name, "w", newline="", encoding="utf-8") as f:
-        f.write(f"# {stampLine}\n")
-        writer = csv.writer(f)
-        writer.writerow(header)
-        writer.writerows(rows)
 
 
 def comparison(problem, heuristics):
