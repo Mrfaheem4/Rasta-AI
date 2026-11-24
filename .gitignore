@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 models/
 outputs/
+data/
 grid_*.npy
 .ruff_cache/
 node_modules/
