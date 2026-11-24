@@ -1,6 +1,6 @@
 import dataclasses
 
-from core.Config import members, stampLine
+from core.Config import cityBounds, members, stampLine
 from core.Instance import Instance
 from world import World
 from world.Heuristics import StopDistances
@@ -67,6 +67,10 @@ class Session:
             "slipPerParcel": inst.slipPerParcel,
             "slipCap": inst.slipCap,
             "twists": [*inst.twists, "load_dependent_slip"],
+            "geo": {
+                **cityBounds,
+                "convention": "row 0 = north edge, col 0 = west edge, cells are equal lat/lon steps",
+            },
         }
 
 

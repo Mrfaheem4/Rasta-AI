@@ -10,6 +10,7 @@ from api.Session import Session
 from core.Config import stampLine
 from world import DeliveryProblem
 from world.Heuristics import exactNearest, manhattanFarthest, manhattanNearest, tunnelMst
+from world.Recorder import Recorder
 
 app = FastAPI(title="Rasta-AI")
 app.add_middleware(
@@ -102,12 +103,14 @@ def plan(req: PlanRequest):
         if not stops or not set(stops) <= set(session.instance.stops):
             raise badRequest("stops must be a non-empty subset of the instance stops")
     start = None if req.start is None else checkCell(req.start)
-    problem = DeliveryProblem(
-        session.world,
-        start=start,
-        deliveredMask=req.deliveredMask,
-        stops=stops,
-        carriedMask=req.carriedMask,
+    problem = Recorder(
+        DeliveryProblem(
+            session.world,
+            start=start,
+            deliveredMask=req.deliveredMask,
+            stops=stops,
+            carriedMask=req.carriedMask,
+        )
     )
     if req.algorithm == "dls" and req.limit is None:
         raise badRequest("dls needs a limit")
@@ -130,5 +133,7 @@ def plan(req: PlanRequest):
         "nodesExpanded": result.nodesExpanded,
         "runtime": result.runtime,
         "peakMemory": result.peakMemory,
+        "expanded": problem.firstPerCellLayer(),
+        "expansionCount": len(problem.expanded),
         "stamp": stampLine,
     }
