@@ -28,6 +28,7 @@ CS-370 Open Ended Lab: an autonomous delivery agent on a grid city. It has to co
 - **Rival steals parcels:** when the rival is adjacent (Manhattan distance 1 or less), it steals the lowest carried parcel. Stealing has a 10-step cooldown. A stolen parcel goes back to the depot, and entering the depot reloads every undelivered parcel.
 - **Load-dependent slip (ours):** p(slip) = min(0.25 + 0.03 x carried, 0.40). A slipped move goes to a random other legal 4-way move. Teleport and stay never slip.
 - **No camping (simulator only):** the rival may not stay two turns in a row.
+- **Half-speed blocker (simulator only):** the rival moves only on every 2nd turn (`rivalEvery = 2`). The game model still assumes a full-speed rival, which is deliberately pessimistic.
 
 ## 3. Search state
 s = (x, D, C), where:
@@ -130,6 +131,7 @@ We checked this **empirically on every reachable state and every edge**: 81,472 
 | Passive | 23/30 | 6/30 | 1/30 | 1,340 |
 
 - **What the deterministic assumption gets wrong:** observed slip was 0.355 against 0.350 expected. The planned cost was 463, but the real mean was much higher.
+- **Balance status (open issue):** the full-speed blocker results are saved in `outputs/game_eval_fullspeed.csv` for the failure analysis. A half-speed smoke test (3 games) still lost every game, with 7 to 41 thefts each. Theft triggers whenever the agent walks past a parked blocker, so theft balancing is still to do, and the full 30-game experiment has not been re-run with the current rules.
 
 ## 6. LLM dispatcher (Part D)
 - **Tools:**
@@ -148,7 +150,7 @@ We checked this **empirically on every reachable state and every edge**: 81,472 
 | `world/` | CostMap, Tunnels, World (enter rule), DeliveryProblem, Heuristics, Simulator, Recorder, CityMap, CityGrid |
 | `game/` | RivalGame, Evaluation, MoveOrdering, Policies, Episode |
 | `llm/` | Tools, Validation, Requests, Dispatcher |
-| `api/` | FastAPI: /instance, /plan (with expansion trace), /params, /mode |
+| `api/` | FastAPI: /instance, /plan (with expansion trace), /params, /mode, /sim/start, /sim/step, /sim/run (live episode frames; the route is sent only when it changes) |
 | `experiments/` | Route, Game, World experiments and Plots; every output is stamped |
 | `docs/` | PartA.md |
 | `frontend/` | React + three.js (in progress) |
@@ -166,8 +168,8 @@ We checked this **empirically on every reachable state and every edge**: 81,472 
 | 1 World model (A) | done |
 | 2 Search algorithms | done |
 | 3 Heuristics and route experiments (B) | done |
-| 4 Rival, simulator, game, games (C) | games re-running with fixes |
-| 5 API | done, plus search trace and city mode |
+| 4 Rival, simulator, game, games (C) | code committed; theft balance and the final 30-game run still open |
+| 5 API | done, plus search trace, city mode and live /sim endpoints |
 | 6 LLM tools (D) | done; model download about 50% |
 | 7 Frontend (Islamabad F-6/F-7, Cipher-style, search animation) | waiting on OSM data and npm |
-| 8 Report assets | Part A and figures done; RunAll.py pending |
+| 8 Report assets | Part A and figures done; RunAll.py and ScenarioExperiments.py committed but not yet run end to end |
