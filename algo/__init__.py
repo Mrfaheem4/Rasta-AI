@@ -1,6 +1,7 @@
 from .AlphaBeta import alphaBeta
 from .AStar import aStar
 from .Bfs import bfs
+from .CostField import costField
 from .Dls import dls
 from .GameProblem import GameProblem, GameResult
 from .Greedy import greedy
@@ -17,6 +18,7 @@ __all__ = [
     "aStar",
     "alphaBeta",
     "bfs",
+    "costField",
     "dls",
     "greedy",
     "ids",

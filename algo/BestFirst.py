@@ -34,4 +34,4 @@ def bestFirst(
                 parents[nextState] = (state, action)
                 key = priority(newG, heuristic(nextState))
                 heapq.heappush(heap, (key, next(tieBreak), newG, nextState))
-    return SearchResult(False, nodesExpanded=nodesExpanded)
+    return SearchResult(False, nodesExpanded=nodesExpanded, reached=gScore)

@@ -25,6 +25,7 @@ class SearchResult:
     nodesExpanded: int = 0
     runtime: float = 0.0
     peakMemory: int = 0  # bytes, from tracemalloc
+    reached: dict = field(default_factory=dict, repr=False)  # best-first only: state -> best g found
 
 
 def measured(search: Callable[..., SearchResult]) -> Callable[..., SearchResult]:
