@@ -76,7 +76,10 @@ def admissibility(problem, world, instance, heuristics, states):
     rng = np.random.default_rng(int(instance.instanceId, 16))
     picks = sorted(rng.choice(len(states), 30, replace=False))
     samples = [states[i] for i in picks]
-    trueCosts = [ucs(DeliveryProblem(world, start=cell, deliveredMask=mask)).cost for cell, mask in samples]
+    trueCosts = [
+        ucs(DeliveryProblem(world, start=cell, deliveredMask=mask, carriedMask=carried)).cost
+        for cell, mask, carried in samples
+    ]
     header = ["heuristic", "samples", "overestimates", "maxOvershoot"]
     rows = []
     for name, h in heuristics.items():
@@ -87,14 +90,14 @@ def admissibility(problem, world, instance, heuristics, states):
 
 
 def exactAdmissibility(instance, distances, heuristics):
-    """Masks with one undelivered stop: true cost-to-go is exactly distances.toStop[i][cell]."""
+    """One pending stop i, carried: true cost-to-go is exactly distances.toNode[i][cell]."""
     full = (1 << len(instance.stops)) - 1
     records = {name: [] for name in heuristics}
     for i, stop in enumerate(instance.stops):
         mask = full ^ (1 << i)
-        for cell, hStar in distances.toStop[i].items():
+        for cell, hStar in distances.toNode[i].items():
             for name, h in heuristics.items():
-                value = h((cell, mask))
+                value = h((cell, mask, 1 << i))
                 records[name].append((value - hStar, cell, stop, value, hStar))
     header = [
         "heuristic",
