@@ -1,3 +1,4 @@
+import itertools
 import threading
 from typing import Any
 
@@ -7,6 +8,7 @@ from pydantic import BaseModel
 
 from algo import aStar, bfs, dls, greedy, ids, ucs
 from api.Session import Session
+from api.SimSession import SimSession
 from core.Config import stampLine
 from world import DeliveryProblem
 from world.Heuristics import exactNearest, manhattanFarthest, manhattanNearest, tunnelMst
@@ -148,5 +150,78 @@ def plan(req: PlanRequest):
         "peakMemory": result.peakMemory,
         "expanded": problem.firstPerCellLayer(),
         "expansionCount": len(problem.expanded),
+        "stamp": stampLine,
+    }
+
+
+class SimStartRequest(BaseModel):
+    seed: int = 0
+    rival: str = "blocker"
+    maxSteps: int | None = None
+
+
+class SimStepRequest(BaseModel):
+    simId: int
+    steps: int = 1
+
+
+sims = {}  # simId -> SimSession, oldest first; at most maxSims are kept
+simCounter = itertools.count(1)
+maxSims = 8
+
+
+def startSim(req: SimStartRequest):
+    if req.rival not in ("blocker", "passive"):
+        raise badRequest(f"unknown rival {req.rival!r}")
+    if req.maxSteps is not None and req.maxSteps < 1:
+        raise badRequest("maxSteps must be at least 1")
+    with searchLock:
+        plannedSteps = len(aStar(DeliveryProblem(session.world), tunnelMst(session.distances)).actions)
+        sim = SimSession(session.world, session.distances, plannedSteps, req.seed, req.rival, req.maxSteps)
+    simId = next(simCounter)
+    if len(sims) >= maxSims:
+        sims.pop(next(iter(sims)))
+    sims[simId] = sim
+    return simId, sim
+
+
+@app.post("/sim/start")
+def simStart(req: SimStartRequest):
+    simId, sim = startSim(req)
+    return {
+        "simId": simId,
+        "maxSteps": sim.maxSteps,
+        "rival": sim.rivalName,
+        "frame": sim.initialFrame(),
+        "stamp": stampLine,
+    }
+
+
+@app.post("/sim/step")
+def simStep(req: SimStepRequest):
+    if not 1 <= req.steps <= 50:
+        raise badRequest("steps must be between 1 and 50")
+    sim = sims.get(req.simId)
+    if sim is None:
+        raise HTTPException(status_code=404, detail=f"unknown simId {req.simId}")
+    frames = []
+    with searchLock:
+        while len(frames) < req.steps and not sim.finished():
+            frames.append(sim.step())
+    return {"simId": req.simId, "frames": frames, "stamp": stampLine}
+
+
+@app.post("/sim/run")
+def simRun(req: SimStartRequest):
+    simId, sim = startSim(req)
+    frames = [sim.initialFrame()]
+    with searchLock:
+        while not sim.finished():
+            frames.append(sim.step())
+    return {
+        "simId": simId,
+        "maxSteps": sim.maxSteps,
+        "outcome": frames[-1].get("outcome"),
+        "frames": frames,
         "stamp": stampLine,
     }
