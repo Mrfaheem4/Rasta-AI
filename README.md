@@ -1,8 +1,6 @@
 # Rasta-AI
 
-CS-370 Artificial Intelligence Open Ended Lab: an autonomous delivery agent under uncertainty and competition.
-
-**Group:** Faheem Ahmed Khan (534662) | Abdullah Waleed Ahmed (509666) | Syed Ehtisham Haider Bukhari (511754) | M Rehan Haider (508160)
+an autonomous delivery agent under uncertainty and competition.
 
 ## Instance `9dc56812`
 - 39 x 39 grid; terrain costs: road 3, grass 6, mud 7, ford 9
